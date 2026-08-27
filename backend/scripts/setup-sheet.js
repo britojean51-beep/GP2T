@@ -69,20 +69,28 @@ async function main() {
     console.log('Abas criadas:', addRequests.map((r) => r.addSheet.properties.title).join(', '));
   }
 
-  // 1b. Planilha nova do Google vem com uma aba padrão "Sheet1" vazia — remove
-  // só se realmente estiver vazia (nunca remove algo com dado dentro).
-  if (existingTitles.includes('Sheet1')) {
-    const sheet1 = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Sheet1!A1:Z1' });
-    const vazia = !sheet1.data.values || sheet1.data.values.length === 0;
-    if (vazia) {
-      const metaAtual = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-      const sheet1Id = metaAtual.data.sheets.find((s) => s.properties.title === 'Sheet1')?.properties.sheetId;
-      if (sheet1Id != null && metaAtual.data.sheets.length > 1) {
-        await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests: [{ deleteSheet: { sheetId: sheet1Id } }] } });
-        console.log('Aba padrão "Sheet1" (vazia) removida.');
-      }
-    } else {
-      console.log('Aba "Sheet1" tem conteúdo — mantida sem alteração.');
+  // 1b. Planilha nova do Google vem com uma aba padrão vazia (nome varia
+  // conforme o idioma da conta: "Sheet1", "Página1" etc.) — remove só se não
+  // for nenhuma das abas que este script gerencia e estiver realmente vazia
+  // (nunca remove algo com dado dentro, nem uma aba criada pelo usuário).
+  const abasGerenciadas = Object.keys(todasAsAbas);
+  const candidatasSobra = existingTitles.filter((t) => !abasGerenciadas.includes(t));
+  for (const tab of candidatasSobra) {
+    const cur = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `'${tab}'!A1:Z1` });
+    const vazia = !cur.data.values || cur.data.values.length === 0;
+    if (!vazia) {
+      console.log(`Aba "${tab}" tem conteúdo — mantida sem alteração.`);
+      continue;
+    }
+    const metaAtual = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    if (metaAtual.data.sheets.length <= 1) {
+      console.log(`Aba "${tab}" está vazia mas é a única da planilha — mantida.`);
+      continue;
+    }
+    const tabId = metaAtual.data.sheets.find((s) => s.properties.title === tab)?.properties.sheetId;
+    if (tabId != null) {
+      await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests: [{ deleteSheet: { sheetId: tabId } }] } });
+      console.log(`Aba padrão "${tab}" (vazia) removida.`);
     }
   }
 

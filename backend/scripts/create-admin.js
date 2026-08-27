@@ -14,29 +14,35 @@ import { randomUUID } from 'crypto';
 import { getAllRows, appendRow } from '../src/lib/sheets.js';
 import { TABS } from '../src/config/schema.js';
 
-function ask(pergunta, { esconder = false } = {}) {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    if (esconder) {
-      // Esconde a digitação da senha no terminal.
-      rl._writeToOutput = (str) => {
-        if (str.trim().length && str !== '\r\n' && !str.startsWith(pergunta)) rl.output.write('*');
-        else rl.output.write(str);
-      };
-    }
-    rl.question(pergunta, (resposta) => {
-      rl.close();
-      resolve(resposta.trim());
-    });
-  });
+// Lê as 3 respostas com o iterador assíncrono do readline (for-await), não
+// com múltiplas chamadas de `rl.question()` encadeadas: quando o stdin não é
+// um terminal interativo (ex.: entrada via pipe/heredoc/CI), a interface pode
+// detectar o fim do stream e se fechar sozinha entre uma pergunta e a
+// seguinte, abandonando a próxima pergunta em silêncio. O for-await evita essa
+// corrida em ambos os casos (terminal real ou entrada não-interativa).
+async function lerRespostas(perguntas) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: !!process.stdin.isTTY });
+  const respostas = [];
+  rl.setPrompt(perguntas[0]);
+  rl.prompt();
+  for await (const linha of rl) {
+    respostas.push(linha.trim());
+    if (respostas.length >= perguntas.length) { rl.close(); break; }
+    rl.setPrompt(perguntas[respostas.length]);
+    rl.prompt();
+  }
+  return respostas;
 }
 
 async function main() {
   console.log('=== Criar usuário Administrador — GP2T ===\n');
+  console.log('(a senha digitada aparece em texto normal no terminal — faça isso num ambiente privado)\n');
 
-  const nome = await ask('Nome completo: ');
-  const email = await ask('E-mail de login: ');
-  const senha = await ask('Senha (mín. 6 caracteres): ', { esconder: true });
+  const [nome, email, senha] = await lerRespostas([
+    'Nome completo: ',
+    'E-mail de login: ',
+    'Senha (mín. 6 caracteres): ',
+  ]);
   console.log('');
 
   if (!nome || !email || !senha || senha.length < 6) {
