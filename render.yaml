@@ -1,0 +1,23 @@
+# Infra-as-code opcional para o Render. Se preferir, configure manualmente
+# pelo painel do Render seguindo o README — este arquivo só automatiza os
+# mesmos passos (menos as variáveis de ambiente com segredo, que nunca vão
+# aqui: são preenchidas manualmente no painel do Render, nunca no repositório).
+services:
+  - type: web
+    name: gp2t-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SPREADSHEET_ID
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON_BASE64
+        sync: false

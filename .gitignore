@@ -1,0 +1,22 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente (contém a credencial da service account — NUNCA commitar)
+.env
+.env.local
+*.env
+
+# Chaves e credenciais baixadas do Google Cloud
+*.json
+!package.json
+!package-lock.json
+!manifest.webmanifest
+
+# Logs e temporários
+*.log
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
