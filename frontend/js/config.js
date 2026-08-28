@@ -7,4 +7,4 @@ const LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.
 
 export const API_BASE_URL = LOCAL
   ? 'http://localhost:3000/api'
-  : 'https://SEU-BACKEND-NO-RENDER.onrender.com/api'; // TROCAR após o deploy do backend
+  : 'https://gp2t.onrender.com/api';
