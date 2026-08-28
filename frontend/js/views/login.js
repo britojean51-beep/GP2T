@@ -10,8 +10,8 @@ export function render() {
     <div class="login">
       <div class="login__card">
         <div class="login__logo">🚛</div>
-        <h1>GP2T</h1>
-        <p class="login__sub">Controle operacional de frota</p>
+        <h1>Gestão de Frota</h1>
+        <p class="login__sub">Controle operacional</p>
         <form id="form-login" class="login__form">
           <label>E-mail<input type="email" name="email" required autocomplete="username"></label>
           <label>Senha<input type="password" name="senha" required autocomplete="current-password"></label>

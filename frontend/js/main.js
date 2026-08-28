@@ -47,7 +47,7 @@ function montarApp() {
   app.innerHTML = `
     <div class="shell">
       <header class="topbar">
-        <div class="topbar__brand">🚛 <strong>GP2T</strong></div>
+        <div class="topbar__brand">🚛 <strong>Gestão de Frota</strong></div>
         <div class="topbar__right">
           <span id="sync-indicator" class="sync-indicator" title="Status de sincronização"></span>
           <span class="topbar__user">${esc(usuario.nome)}</span>

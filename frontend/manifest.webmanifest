@@ -1,6 +1,6 @@
 {
-  "name": "GP2T — Controle Operacional de Frota",
-  "short_name": "GP2T",
+  "name": "Gestão de Frota",
+  "short_name": "Gestão de Frota",
   "description": "Lançamento diário, operadores e equipamentos, sincronizados com a planilha oficial.",
   "start_url": "./index.html",
   "scope": "./",
