@@ -89,8 +89,10 @@ cp .env.example .env
 Edite o `.env`:
 - `SPREADSHEET_ID`: o trecho do link da planilha entre `/d/` e `/edit`.
 - `JWT_SECRET`: gere com `openssl rand -hex 32`.
-- `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`: o JSON do passo anterior, em base64
-  numa linha só. No Linux/Mac: `base64 -i caminho/para/chave.json | tr -d '\n'`.
+- `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`: cole o conteúdo do arquivo JSON
+  baixado no passo anterior — pode colar direto, com várias linhas mesmo, o
+  app detecta sozinho. (Também aceita o mesmo JSON em base64 numa linha só,
+  se preferir: `base64 -i caminho/para/chave.json | tr -d '\n'`.)
 
 Depois:
 
@@ -137,6 +139,8 @@ Abra `http://localhost:5500` — o frontend já aponta para
 4. Em **Environment**, adicione as mesmas variáveis do seu `.env` local
    (`SPREADSHEET_ID`, `JWT_SECRET`, `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`) mais
    `CORS_ORIGIN` = a URL do GitHub Pages (passo abaixo) e `NODE_ENV=production`.
+   O campo de valor no Render aceita várias linhas — pode colar o conteúdo do
+   arquivo JSON da conta de serviço direto ali, sem precisar converter nada.
 5. Depois do deploy, teste `https://SEU-SERVICO.onrender.com/api/health`.
 
    ⚠️ No plano gratuito, o backend "dorme" após ~15 min sem uso — a primeira
