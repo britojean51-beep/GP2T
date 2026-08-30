@@ -138,9 +138,16 @@ Abra `http://localhost:5500` — o frontend já aponta para
 3. Root Directory: `backend`. Build: `npm install`. Start: `npm start`. Plano: Free.
 4. Em **Environment**, adicione as mesmas variáveis do seu `.env` local
    (`SPREADSHEET_ID`, `JWT_SECRET`, `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`) mais
-   `CORS_ORIGIN` = a URL do GitHub Pages (passo abaixo) e `NODE_ENV=production`.
+   `CORS_ORIGIN` = a URL do Firebase Hosting (passo abaixo, **sem barra e sem
+   caminho no final** — só `https://SEU-PROJETO.web.app`) e `NODE_ENV=production`.
    O campo de valor no Render aceita várias linhas — pode colar o conteúdo do
    arquivo JSON da conta de serviço direto ali, sem precisar converter nada.
+
+   ⚠️ **Atenção com o `CORS_ORIGIN`**: o navegador nunca envia caminho
+   (`/algo`) no cabeçalho de origem, só o domínio. Se colocar qualquer coisa
+   depois do domínio (ex.: `.../GP2T`), o backend rejeita todas as chamadas
+   do frontend e o app mostra "Sem conexão com o servidor" mesmo com tudo
+   funcionando — foi um erro real que já aconteceu aqui.
 5. Depois do deploy, teste `https://SEU-SERVICO.onrender.com/api/health`.
 
    ⚠️ No plano gratuito, o backend "dorme" após ~15 min sem uso — a primeira
@@ -149,16 +156,34 @@ Abra `http://localhost:5500` — o frontend já aponta para
    trocar para um plano pago (ex.: Starter, ~US$7/mês) nas configurações do
    serviço no Render, sem mudar nada no código.
 
-### Frontend no GitHub Pages
+### Frontend no Firebase Hosting
+
+O link final fica no formato `https://SEU-PROJETO.web.app` — o nome vem do
+projeto que você escolhe no Firebase, não do seu usuário do GitHub.
 
 1. Edite `frontend/js/config.js`, trocando `SEU-BACKEND-NO-RENDER` pela URL
    real do serviço criado no Render.
-2. Ative o GitHub Pages no repositório: **Settings → Pages → Source: GitHub
-   Actions**. O workflow em `.github/workflows/deploy-pages.yml` já publica a
-   pasta `frontend/` a cada push em `main`.
-3. Depois do primeiro deploy, volte no Render e confirme que `CORS_ORIGIN`
-   está exatamente igual à URL do GitHub Pages (ex.:
-   `https://SEU-USUARIO.github.io/GP2T`).
+2. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com)
+   com o nome que você quiser para o link (ex.: `gestao-de-frota` → fica
+   `gestao-de-frota.web.app`). Pode desativar o Google Analytics, não é usado.
+3. Atualize `.firebaserc` na raiz do repositório com o ID real do projeto:
+   ```json
+   { "projects": { "default": "SEU-PROJETO-ID" } }
+   ```
+4. No [Google Cloud Console](https://console.cloud.google.com), com o mesmo
+   projeto selecionado (Firebase roda sobre Google Cloud, é o mesmo projeto):
+   **IAM e Admin → Contas de Serviço → Criar Conta de Serviço** (ex.:
+   `deploy-hosting`). Depois, em **IAM**, conceda a essa conta o papel
+   **Firebase Hosting Admin**. Gere uma chave JSON (Chaves → Adicionar Chave
+   → JSON) e baixe.
+5. No repositório GitHub: **Settings → Secrets and variables → Actions → New
+   repository secret**. Nome: `FIREBASE_SERVICE_ACCOUNT`. Valor: cole o
+   conteúdo do JSON baixado (pode colar direto, várias linhas).
+6. Dê um push em `main` (qualquer alteração em `frontend/` já dispara) — o
+   workflow `.github/workflows/deploy-firebase.yml` publica automaticamente.
+7. Depois do primeiro deploy, volte no Render e confirme que `CORS_ORIGIN`
+   está exatamente igual à URL do Firebase (ex.: `https://gestao-de-frota.web.app`,
+   sem barra no final).
 
 ---
 
