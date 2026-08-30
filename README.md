@@ -164,25 +164,34 @@ projeto que você escolhe no Firebase, não do seu usuário do GitHub.
 1. Edite `frontend/js/config.js`, trocando `SEU-BACKEND-NO-RENDER` pela URL
    real do serviço criado no Render.
 2. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com)
-   com o nome que você quiser para o link (ex.: `gestao-de-frota` → fica
-   `gestao-de-frota.web.app`). Pode desativar o Google Analytics, não é usado.
-3. Atualize `.firebaserc` na raiz do repositório com o ID real do projeto:
+   com o nome que você quiser para o link. **Atenção:** se o nome exato já
+   estiver em uso por outra pessoa, o Firebase acrescenta um sufixo aleatório
+   ao ID do projeto (ex.: pedir `gestao-de-frota` pode virar
+   `gestao-de-frota-c7565`) — o link final usa esse ID real, não o nome que
+   você digitou. Confira o ID exato nas configurações do projeto ou no
+   sufixo do e-mail da conta de serviço (próximo passo). Pode desativar o
+   Google Analytics, não é usado.
+3. Atualize `.firebaserc` na raiz do repositório e o campo `projectId` em
+   `.github/workflows/deploy-firebase.yml` com o **ID real** do projeto
+   (não o nome que você digitou, caso tenham ficado diferentes):
    ```json
    { "projects": { "default": "SEU-PROJETO-ID" } }
    ```
-4. No [Google Cloud Console](https://console.cloud.google.com), com o mesmo
-   projeto selecionado (Firebase roda sobre Google Cloud, é o mesmo projeto):
-   **IAM e Admin → Contas de Serviço → Criar Conta de Serviço** (ex.:
-   `deploy-hosting`). Depois, em **IAM**, conceda a essa conta o papel
-   **Firebase Hosting Admin**. Gere uma chave JSON (Chaves → Adicionar Chave
-   → JSON) e baixe.
+4. O Firebase já cria automaticamente uma conta de serviço padrão
+   (`firebase-adminsdk-fbsvc@SEU-PROJETO-ID.iam.gserviceaccount.com`) —
+   não precisa criar uma nova. No [Google Cloud Console](https://console.cloud.google.com),
+   com o mesmo projeto selecionado (Firebase roda sobre Google Cloud, é o
+   mesmo projeto): **IAM e Admin → IAM**, encontre essa conta e confira/
+   adicione o papel **Firebase Hosting Admin**. Depois, em **Contas de
+   Serviço**, abra essa conta → aba **Chaves** → **Adicionar Chave** →
+   **Criar nova chave** → **JSON** → baixe.
 5. No repositório GitHub: **Settings → Secrets and variables → Actions → New
    repository secret**. Nome: `FIREBASE_SERVICE_ACCOUNT`. Valor: cole o
    conteúdo do JSON baixado (pode colar direto, várias linhas).
 6. Dê um push em `main` (qualquer alteração em `frontend/` já dispara) — o
    workflow `.github/workflows/deploy-firebase.yml` publica automaticamente.
 7. Depois do primeiro deploy, volte no Render e confirme que `CORS_ORIGIN`
-   está exatamente igual à URL do Firebase (ex.: `https://gestao-de-frota.web.app`,
+   está exatamente igual à URL do Firebase (ex.: `https://SEU-PROJETO-ID.web.app`,
    sem barra no final).
 
 ---
