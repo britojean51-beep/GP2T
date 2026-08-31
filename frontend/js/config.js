@@ -1,10 +1,9 @@
 // ============================================================================
 // config.js — Único lugar que precisa ser editado ao trocar de ambiente.
-// Em desenvolvimento local aponta pro backend rodando na sua máquina; troque
-// API_BASE_URL para a URL pública do Render antes de publicar no GitHub Pages.
+// APPS_SCRIPT_URL é a URL do Web App do Google Apps Script (Implantar >
+// Nova implantação > App da Web) — troque aqui sempre que fizer uma nova
+// implantação que gere uma URL diferente (implantações "Gerenciar
+// implantações > editar > Nova versão" mantêm a mesma URL, então isso só
+// muda na primeira implantação ou se uma implantação for recriada do zero).
 // ============================================================================
-const LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-
-export const API_BASE_URL = LOCAL
-  ? 'http://localhost:3000/api'
-  : 'https://gp2t.onrender.com/api';
+export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHsoVMio2wclMDT9Nh3aTwCMX7T1-17CuD27ED_WfqtId7mz5hvtnbjj3qSutejd0i/exec';
