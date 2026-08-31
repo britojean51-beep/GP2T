@@ -162,6 +162,23 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--teal); outl
 .modal__foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
 .confirm-msg { white-space: pre-line; }
 
+/* ---------- Resumos (sub-abas, KPIs, tabela) -------------------------------- */
+.subtabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; -webkit-overflow-scrolling: touch; }
+.subtab-item { flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: .82rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.subtab-item.ativo { background: var(--teal); border-color: var(--teal); color: #fff; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 4px; }
+.kpi-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.kpi-label { font-size: .68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.kpi-valor { font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.tabela-wrap { overflow-x: auto; margin-top: 10px; -webkit-overflow-scrolling: touch; }
+.tabela { width: 100%; border-collapse: collapse; font-size: .84rem; white-space: nowrap; }
+.tabela th, .tabela td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+.tabela th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .3px; font-weight: 700; background: var(--surface-2); position: sticky; top: 0; }
+.tabela tbody tr:hover { background: var(--surface-2); }
+
 /* ---------- Toast -------------------------------------------------------------- */
 .toast { position: fixed; left: 50%; bottom: 80px; translate: -50% 20px; background: var(--teal-esc); color: #fff; padding: 13px 20px; border-radius: 12px; box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none; transition: opacity .25s, translate .25s; z-index: 200; font-size: .88rem; font-weight: 700; max-width: 90vw; white-space: pre-line; }
 .toast--show { opacity: 1; translate: -50% 0; }

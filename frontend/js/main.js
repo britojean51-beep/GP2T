@@ -11,12 +11,14 @@ import * as Login from './views/login.js';
 import * as Lancamentos from './views/lancamentos.js';
 import * as Operadores from './views/operadores.js';
 import * as Equipamentos from './views/equipamentos.js';
+import * as Resumos from './views/resumos.js';
 import * as Usuarios from './views/usuarios.js';
 
 const NAV = [
   { rota: '#/', label: 'Lançamentos', icon: '📝' },
   { rota: '#/operadores', label: 'Operadores', icon: '👷' },
   { rota: '#/equipamentos', label: 'Equipamentos', icon: '🚛' },
+  { rota: '#/resumos', label: 'Resumos', icon: '📊' },
   { rota: '#/usuarios', label: 'Usuários', icon: '👤', admin: true },
 ];
 
@@ -24,6 +26,7 @@ const ROTAS = {
   '#/': Lancamentos.render,
   '#/operadores': Operadores.render,
   '#/equipamentos': Equipamentos.render,
+  '#/resumos': Resumos.render,
   '#/usuarios': Usuarios.render,
 };
 
@@ -90,7 +93,16 @@ async function atualizarIndicadorSync() {
   }
 }
 
+// Se o usuário troca de rota antes da anterior terminar de carregar (comum
+// com o backend "dormindo" no Render, ou só clicando rápido demais), as duas
+// chamadas ficam pendentes ao mesmo tempo — sem essa trava, a que demorar
+// mais pode resolver por último e sobrescrever o outlet com a tela ERRADA
+// (a antiga, não a que o usuário está vendo/esperando). `minhaNavegacao`
+// garante que só a navegação mais recente tem permissão de escrever no DOM.
+let ultimaNavegacao = 0;
+
 async function resolverRota() {
+  const minhaNavegacao = ++ultimaNavegacao;
   const hash = location.hash || '#/';
   const outlet = document.getElementById('outlet');
   const handler = ROTAS[hash];
@@ -104,10 +116,12 @@ async function resolverRota() {
   outlet.innerHTML = '<div class="loading">Carregando…</div>';
   try {
     const saida = await handler();
+    if (minhaNavegacao !== ultimaNavegacao) return;
     const html = typeof saida === 'string' ? saida : saida.html;
     outlet.innerHTML = html;
     if (saida && typeof saida.montar === 'function') saida.montar(outlet);
   } catch (e) {
+    if (minhaNavegacao !== ultimaNavegacao) return;
     console.error(e);
     outlet.innerHTML = `<div class="aviso aviso--erro">Erro ao carregar: ${esc(e.message)}</div>`;
   }

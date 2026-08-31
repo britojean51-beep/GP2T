@@ -4,6 +4,7 @@ export const TABS = {
   EQUIPAMENTOS: 'Equipamentos',
   OPERADORES: 'Operadores',
   LANCAMENTOS: 'Lançamento Diário',
+  MANUTENCOES: 'Manutenções',
   USUARIOS: 'Usuários',
   AUDITORIA: 'Auditoria',
   CONFIG: 'Config',

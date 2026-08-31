@@ -8,6 +8,8 @@ import equipamentosRoutes from './routes/equipamentos.routes.js';
 import operadoresRoutes from './routes/operadores.routes.js';
 import lancamentosRoutes from './routes/lancamentos.routes.js';
 import configRoutes from './routes/config.routes.js';
+import resumosRoutes from './routes/resumos.routes.js';
+import manutencoesRoutes from './routes/manutencoes.routes.js';
 
 const app = express();
 app.use(cors({ origin: CORS_ORIGIN }));
@@ -21,6 +23,8 @@ app.use('/api/equipamentos', equipamentosRoutes);
 app.use('/api/operadores', operadoresRoutes);
 app.use('/api/lancamentos', lancamentosRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/resumos', resumosRoutes);
+app.use('/api/manutencoes', manutencoesRoutes);
 
 app.use((req, res) => res.status(404).json({ erro: 'ROTA_NAO_ENCONTRADA', mensagem: 'Rota não encontrada.' }));
 app.use(errorHandler);
