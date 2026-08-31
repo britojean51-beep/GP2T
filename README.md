@@ -16,14 +16,23 @@ DENTRO da planilha.
 
 ```
 GP2T/
-  backend/     API (Node/Express) que fala com a Planilha Google via service account
+  appsscript/  Backend em Google Apps Script, preso à própria planilha (em uso)
   frontend/    PWA mobile-first (HTML/CSS/JS puro, sem build)
+  backend/     Backend antigo em Node/Express — DESCONTINUADO (ver abaixo)
 ```
 
 O backend nunca deixa o app ter dois "bancos de dados" divergentes: toda
 leitura/escrita passa pela planilha. O frontend só guarda uma fila local
 temporária (IndexedDB) para lançamentos feitos **offline**, que sincroniza
 sozinha assim que a conexão volta.
+
+> **Sobre o `backend/`:** era a versão em Node/Express hospedada no Render.
+> Foi substituída pelo `appsscript/` porque o plano gratuito do Render
+> "dorme" após ~15 min sem uso e a primeira chamada do dia levava 30-50s
+> para responder. O Apps Script roda dentro do Google (~1-3s no primeiro
+> acesso), é gratuito e dispensa conta de serviço. A pasta segue no
+> repositório só como referência histórica — **não é mais usada nem
+> implantada**, e pode ser removida quando não fizer mais falta.
 
 ---
 
@@ -33,166 +42,155 @@ A planilha operacional já está criada como Planilha Google nativa:
 
 - **Nome:** Planilha_Controle_Op_Dinamica
 - **Link:** https://docs.google.com/spreadsheets/d/1po82mv7df3rMDITPY-eOV9wSiqImO8Yj1XwShCW4Flg/edit
-- **SPREADSHEET_ID** (para o `.env`): `1po82mv7df3rMDITPY-eOV9wSiqImO8Yj1XwShCW4Flg`
+- **SPREADSHEET_ID** (propriedade do script, ver adiante): `1po82mv7df3rMDITPY-eOV9wSiqImO8Yj1XwShCW4Flg`
 
 O arquivo `.xlsx` original que existia no Drive foi mantido intacto, só
 renomeado para `Planilha_Controle_Op_Dinamica (ORIGINAL .xlsx — substituída
 pela versão Google Sheets)` — ele estava vazio (só cabeçalhos, sem dados
 reais), então nada foi perdido na troca.
 
-A planilha nova está vazia (sem nem as abas ainda) — o passo 2 abaixo
-(`npm run setup:sheet`) cria toda a estrutura automaticamente, incluindo as
-abas `Equipamentos`, `Operadores` e `Lançamento Diário` com as colunas
-originais do projeto.
+A planilha já está com toda a estrutura montada: as 10 abas do layout
+profissional (faixa de título, cabeçalho na linha 3, painéis automáticos) e
+as 3 abas internas do app (`Usuários`, `Auditoria`, `Config`). Veja
+"Estrutura da planilha" no final deste arquivo.
 
 ---
 
-## 1. Configurar o Google Cloud (uma vez só)
+## 1. Backend em Google Apps Script
 
-O backend precisa de uma **conta de serviço** do Google para poder ler/escrever
-na planilha em nome do app (sem precisar de login do Google de cada operador).
+O backend roda **dentro do Google**, como um projeto Apps Script ligado à
+planilha. Isso significa que **não existe conta de serviço, chave JSON nem
+servidor para hospedar** — o script acessa a planilha com a permissão de
+quem publicou a implantação.
 
-1. Acesse [console.cloud.google.com](https://console.cloud.google.com) com a
-   conta que é dona da planilha.
-2. Crie um novo projeto (nome sugerido: `GP2T`).
-3. Menu **APIs e Serviços → Biblioteca** → habilite a **Google Sheets API**.
-4. Habilite também a **Google Drive API**.
-5. **APIs e Serviços → Credenciais → Criar Credenciais → Conta de Serviço**.
-   Nome sugerido: `gp2t-backend`. Não precisa dar nenhum papel de IAM no
-   projeto (o acesso é dado direto na planilha, no passo 8).
-6. Abra a conta de serviço criada → aba **Chaves → Adicionar Chave → Criar
-   nova chave → JSON** → baixe o arquivo. **Guarde fora do repositório —
-   nunca commite esse arquivo.**
-7. Copie o e-mail da conta de serviço (formato
-   `gp2t-backend@SEU-PROJETO.iam.gserviceaccount.com`).
-8. Abra a Planilha Google oficial → **Compartilhar** → adicione esse e-mail
-   como **Editor**.
+O código fica em `appsscript/` (versionado aqui, como qualquer outro código)
+e é publicado no projeto Apps Script via **API do Apps Script** — não por
+copiar e colar no editor.
 
-Guarde o arquivo JSON baixado — ele vai virar uma variável de ambiente no
-próximo passo (nunca vai para o Git).
+### O que está publicado hoje
+
+- **Projeto Apps Script:** `GP2T Backend`
+- **Editor:** https://script.google.com/d/11pUEmBVb-MaV1wBzA7fWdd6pL0OrTvIroRYceiX6cJz1cOQR9y_LofWy/edit
+- **URL do Web App** (é o que o frontend chama):
+  `https://script.google.com/macros/s/AKfycbxHsoVMio2wclMDT9Nh3aTwCMX7T1-17CuD27ED_WfqtId7mz5hvtnbjj3qSutejd0i/exec`
+
+A implantação está como **Executar como: eu** e **Quem tem acesso:
+qualquer pessoa** — necessário porque o app chama o backend sem login do
+Google. Isso **não** deixa os dados abertos: toda ação (fora `health` e
+`auth.login`) exige um token de sessão assinado, verificado no servidor.
+
+### Propriedades do script (equivalente ao `.env`)
+
+No editor do Apps Script: **Configurações do projeto → Propriedades do
+script**.
+
+| Propriedade | Para que serve |
+|---|---|
+| `SPREADSHEET_ID` | ID da planilha oficial |
+| `JWT_SECRET` | segredo usado para assinar os tokens de sessão |
+| `SENHA_TEMP_ADMIN` | (opcional) senha temporária que o `setupInicial()` usa; se não existir, ele gera uma aleatória e mostra no log |
+
+### Publicar uma alteração no backend
+
+Depois de editar qualquer arquivo em `appsscript/`, envie o código para o
+projeto e crie uma nova versão da implantação **usando a mesma URL** (a URL
+do Web App não muda entre versões):
+
+1. `PUT https://script.googleapis.com/v1/projects/{scriptId}/content` com
+   todos os arquivos (`type: SERVER_JS`, mais o manifesto `appsscript` como
+   `type: JSON`).
+2. `POST .../versions` para criar a versão.
+3. `PUT .../deployments/{deploymentId}` apontando para a versão nova.
+
+Isso exige um token OAuth do dono da planilha com os escopos
+`script.projects` e `script.deployments`, e a **Apps Script API** ativada
+em duas pontas: no projeto do Google Cloud e na conta pessoal
+([script.google.com/home/usersettings](https://script.google.com/home/usersettings)).
+
+> ⚠️ Contas de serviço **não** conseguem usar a Apps Script API: a ativação
+> em `usersettings` só existe para conta de pessoa. Por isso a publicação
+> usa OAuth de usuário, e não a conta de serviço do projeto.
+
+> ⚠️ O fluxo OAuth de "TVs e dispositivos com entrada limitada" (aquele de
+> código curto) **não aceita** os escopos `script.*` — o Google recusa com
+> `invalid_scope`. Use um cliente OAuth do tipo **Aplicativo da Web** com
+> `http://localhost` como URI de redirecionamento e pegue o `code` da barra
+> de endereço (a página em si não vai abrir, e isso é esperado).
+
+### Primeira configuração de um projeto novo
+
+Se um dia precisar recriar o projeto do zero, duas ações públicas fazem a
+configuração inicial sem abrir o editor. Ambas **se autodesabilitam** depois
+da primeira execução bem-sucedida:
+
+- `?action=setup.bootstrap&spreadsheetId=...&jwtSecret=...` grava as
+  propriedades do script (só funciona enquanto `SPREADSHEET_ID` não existir).
+- `?action=setup.admin` cria/migra o usuário administrador e acrescenta a
+  coluna `Salt` em `Usuários` (só funciona enquanto essa coluna não existir).
 
 ---
 
-## 2. Preparar a planilha (uma vez só)
+## 2. Estrutura da planilha (uma vez só)
 
-O app precisa de algumas colunas técnicas e 3 abas novas (`Usuários`,
-`Auditoria`, `Config`) além das que você já tem (`Equipamentos`, `Operadores`,
-`Lançamento Diário`). Isso é feito por um script — **é seguro rodar mais de
-uma vez**, ele só acrescenta o que falta, nunca apaga nada.
+As abas e colunas técnicas já estão criadas. Se precisar recriá-las num
+ambiente novo, o script `backend/scripts/setup-sheet.js` (da versão antiga)
+ainda serve como referência do que cada aba precisa ter — é seguro rodar
+mais de uma vez, só acrescenta o que falta.
 
-```bash
-cd backend
-npm install
-cp .env.example .env
-```
-
-Edite o `.env`:
-- `SPREADSHEET_ID`: o trecho do link da planilha entre `/d/` e `/edit`.
-- `JWT_SECRET`: gere com `openssl rand -hex 32`.
-- `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`: cole o conteúdo do arquivo JSON
-  baixado no passo anterior — pode colar direto, com várias linhas mesmo, o
-  app detecta sozinho. (Também aceita o mesmo JSON em base64 numa linha só,
-  se preferir: `base64 -i caminho/para/chave.json | tr -d '\n'`.)
-
-Depois:
-
-```bash
-npm run setup:sheet
-```
-
-Isso cria as abas/colunas que faltam. Em seguida, crie o primeiro
-administrador:
-
-```bash
-npm run create:admin
-```
-
-Guarde o e-mail/senha que você digitar — é o login inicial do app.
+O login inicial é criado pelo `setupInicial()` do Apps Script (ver acima).
 
 ---
 
 ## 3. Rodar localmente
 
-```bash
-# Backend (numa aba de terminal)
-cd backend
-npm run dev          # sobe em http://localhost:3000
+O backend **não roda localmente** — Apps Script só executa dentro do
+Google. Para mexer no frontend apontando para o backend real:
 
-# Frontend (noutra aba)
+```bash
 cd frontend
 python3 -m http.server 5500   # ou qualquer servidor estático
 ```
 
-Abra `http://localhost:5500` — o frontend já aponta para
-`http://localhost:3000/api` automaticamente quando rodando em localhost
-(veja `frontend/js/config.js`).
+Abra `http://localhost:5500`. O `frontend/js/config.js` aponta sempre para
+a URL do Web App publicado (não há modo local separado).
+
+Para testar a lógica do backend sem publicar, o caminho é rodar os `.gs`
+sobre stubs das APIs do Apps Script (`SpreadsheetApp`, `Utilities`,
+`PropertiesService`, `CacheService`, `LockService`) num harness Node — foi
+assim que a migração foi validada, com 33 casos cobrindo autenticação,
+CRUD, permissões por perfil, horímetro retroativo, upsert idempotente e o
+cálculo dos painéis.
 
 ---
 
-## 4. Publicar (deploy)
+## 4. Publicar o frontend (Firebase Hosting)
 
-### Backend no Render
+O link final é **https://gestao-de-frota-c7565.web.app**.
 
-1. Suba este repositório para o GitHub (branch `main`).
-2. Em [render.com](https://render.com), **New → Web Service**, conecte o repo `GP2T`.
-3. Root Directory: `backend`. Build: `npm install`. Start: `npm start`. Plano: Free.
-4. Em **Environment**, adicione as mesmas variáveis do seu `.env` local
-   (`SPREADSHEET_ID`, `JWT_SECRET`, `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`) mais
-   `CORS_ORIGIN` = a URL do Firebase Hosting (passo abaixo, **sem barra e sem
-   caminho no final** — só `https://SEU-PROJETO.web.app`) e `NODE_ENV=production`.
-   O campo de valor no Render aceita várias linhas — pode colar o conteúdo do
-   arquivo JSON da conta de serviço direto ali, sem precisar converter nada.
+Qualquer push em `main` que toque `frontend/` dispara o workflow
+`.github/workflows/deploy-firebase.yml`, que publica sozinho.
 
-   ⚠️ **Atenção com o `CORS_ORIGIN`**: o navegador nunca envia caminho
-   (`/algo`) no cabeçalho de origem, só o domínio. Se colocar qualquer coisa
-   depois do domínio (ex.: `.../GP2T`), o backend rejeita todas as chamadas
-   do frontend e o app mostra "Sem conexão com o servidor" mesmo com tudo
-   funcionando — foi um erro real que já aconteceu aqui.
-5. Depois do deploy, teste `https://SEU-SERVICO.onrender.com/api/health`.
+> ⚠️ **Ao mudar qualquer arquivo do app shell, suba a versão do cache em
+> `frontend/sw.js`** (`const CACHE = 'gp2t-vN'`). O Service Worker é
+> cache-first e só reinstala quando o conteúdo do `sw.js` muda — sem isso,
+> o navegador continua servindo a versão antiga do app depois do deploy,
+> mesmo com o Firebase já atualizado. Isso já causou confusão real aqui.
 
-   ⚠️ No plano gratuito, o backend "dorme" após ~15 min sem uso — a primeira
-   chamada do dia demora uns 30-50s para responder. Depois disso fica normal.
-   Isso é aceitável para uso interno; se quiser eliminar essa espera, dá pra
-   trocar para um plano pago (ex.: Starter, ~US$7/mês) nas configurações do
-   serviço no Render, sem mudar nada no código.
+Para recriar do zero em outro projeto Firebase:
 
-### Frontend no Firebase Hosting
+1. Crie o projeto em [console.firebase.google.com](https://console.firebase.google.com).
+   **Atenção:** se o nome já estiver em uso, o Firebase acrescenta um sufixo
+   ao ID (pedir `gestao-de-frota` virou `gestao-de-frota-c7565`) — o link usa
+   o ID real.
+2. Ajuste `.firebaserc` e o `projectId` em `.github/workflows/deploy-firebase.yml`.
+3. Dê o papel **Firebase Hosting Admin** à conta de serviço padrão que o
+   Firebase já cria (`firebase-adminsdk-fbsvc@SEU-PROJETO-ID...`), gere uma
+   chave JSON e salve como secret `FIREBASE_SERVICE_ACCOUNT` no repositório
+   (**Settings → Secrets and variables → Actions**).
 
-O link final fica no formato `https://SEU-PROJETO.web.app` — o nome vem do
-projeto que você escolhe no Firebase, não do seu usuário do GitHub.
-
-1. Edite `frontend/js/config.js`, trocando `SEU-BACKEND-NO-RENDER` pela URL
-   real do serviço criado no Render.
-2. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com)
-   com o nome que você quiser para o link. **Atenção:** se o nome exato já
-   estiver em uso por outra pessoa, o Firebase acrescenta um sufixo aleatório
-   ao ID do projeto (ex.: pedir `gestao-de-frota` pode virar
-   `gestao-de-frota-c7565`) — o link final usa esse ID real, não o nome que
-   você digitou. Confira o ID exato nas configurações do projeto ou no
-   sufixo do e-mail da conta de serviço (próximo passo). Pode desativar o
-   Google Analytics, não é usado.
-3. Atualize `.firebaserc` na raiz do repositório e o campo `projectId` em
-   `.github/workflows/deploy-firebase.yml` com o **ID real** do projeto
-   (não o nome que você digitou, caso tenham ficado diferentes):
-   ```json
-   { "projects": { "default": "SEU-PROJETO-ID" } }
-   ```
-4. O Firebase já cria automaticamente uma conta de serviço padrão
-   (`firebase-adminsdk-fbsvc@SEU-PROJETO-ID.iam.gserviceaccount.com`) —
-   não precisa criar uma nova. No [Google Cloud Console](https://console.cloud.google.com),
-   com o mesmo projeto selecionado (Firebase roda sobre Google Cloud, é o
-   mesmo projeto): **IAM e Admin → IAM**, encontre essa conta e confira/
-   adicione o papel **Firebase Hosting Admin**. Depois, em **Contas de
-   Serviço**, abra essa conta → aba **Chaves** → **Adicionar Chave** →
-   **Criar nova chave** → **JSON** → baixe.
-5. No repositório GitHub: **Settings → Secrets and variables → Actions → New
-   repository secret**. Nome: `FIREBASE_SERVICE_ACCOUNT`. Valor: cole o
-   conteúdo do JSON baixado (pode colar direto, várias linhas).
-6. Dê um push em `main` (qualquer alteração em `frontend/` já dispara) — o
-   workflow `.github/workflows/deploy-firebase.yml` publica automaticamente.
-7. Depois do primeiro deploy, volte no Render e confirme que `CORS_ORIGIN`
-   está exatamente igual à URL do Firebase (ex.: `https://SEU-PROJETO-ID.web.app`,
-   sem barra no final).
+Não existe mais nada de CORS para configurar: o Apps Script responde a
+qualquer origem, e o app evita o preflight por desenho (GET com token na
+URL, POST com `Content-Type: text/plain`).
 
 ---
 
@@ -227,13 +225,15 @@ simples):
    app, nem leem nem escrevem nada por API). Atualizam sozinhos conforme
    novos lançamentos entram pelo app. **Não edite fórmulas nessas abas** —
    um erro de fórmula quebra o painel inteiro.
-3. **Manutenções** — só cabeçalho, preenchimento **manual direto na
-   planilha** (o app não tem tela para isso, por desenho: é a aba de
-   Históricos dela mesma que consome esses dados).
+3. **Manutenções** — preenchimento **manual direto na planilha**. O app
+   mostra essa lista (aba Manutenções dentro de **Resumos**), mas **só
+   leitura**: não cadastra nem edita, por decisão de projeto.
 4. **Usuários**, **Auditoria**, **Config** — abas internas do app (login,
    log de ações, listas de Função/Tipo de Equipamento). Ficam com cabeçalho
    simples na linha 1, sem faixa de título — não fazem parte do layout
    visual "profissional" de propósito, o usuário raramente as abre.
+   `Usuários` tem uma coluna `Salt` por usuário, usada junto com `SenhaHash`
+   no cálculo da senha — apagar essa coluna invalida todos os logins.
 
 > **Nota técnica:** em `Lançamento Diário`, as colunas `Horas`, `L/h` e
 > `L/Ton` são **valores calculados e gravados pelo backend** a cada
