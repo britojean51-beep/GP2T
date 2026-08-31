@@ -12,6 +12,7 @@ import { google } from 'googleapis';
 import { getAuthClient } from '../src/config/googleAuth.js';
 import { SPREADSHEET_ID } from '../src/config/env.js';
 import { TABS } from '../src/config/schema.js';
+import { headerRowOf } from '../src/lib/sheets.js';
 
 // Abas base do controle operacional (a estrutura original do brief). Numa
 // planilha nova/em branco elas ainda não existem — este script cria com
@@ -94,18 +95,21 @@ async function main() {
     }
   }
 
-  // 2. Escreve cabeçalhos nas abas base + novas (só se a linha 1 ainda estiver vazia).
+  // 2. Escreve cabeçalhos nas abas base + novas (só se a linha de cabeçalho
+  // ainda estiver vazia). headerRowOf(tab) é 3 para Equipamentos/Operadores/
+  // Lançamento Diário (layout com faixa de título) e 1 para as demais.
   for (const [tab, headers] of Object.entries(todasAsAbas)) {
-    const cur = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${tab}!1:1` });
+    const hr = headerRowOf(tab);
+    const cur = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${tab}!${hr}:${hr}` });
     const jaTemCabecalho = cur.data.values && cur.data.values[0] && cur.data.values[0].length > 0;
     if (!jaTemCabecalho) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${tab}!A1`,
+        range: `${tab}!A${hr}`,
         valueInputOption: 'RAW',
         requestBody: { values: [headers] },
       });
-      console.log(`Cabeçalhos escritos em "${tab}".`);
+      console.log(`Cabeçalhos escritos em "${tab}" (linha ${hr}).`);
     } else {
       console.log(`"${tab}" já tem cabeçalho — mantido sem alteração.`);
     }
@@ -113,14 +117,15 @@ async function main() {
 
   // 3. Acrescenta colunas técnicas ao final das abas existentes (só as que faltam).
   for (const [tab, cols] of Object.entries(EXTRA_COLUMNS)) {
-    const cur = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${tab}!1:1` });
+    const hr = headerRowOf(tab);
+    const cur = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${tab}!${hr}:${hr}` });
     const existing = (cur.data.values && cur.data.values[0]) || [];
     const missing = cols.filter((c) => !existing.includes(c));
     if (missing.length) {
       const startCol = colLetter(existing.length);
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${tab}!${startCol}1`,
+        range: `${tab}!${startCol}${hr}`,
         valueInputOption: 'RAW',
         requestBody: { values: [missing] },
       });

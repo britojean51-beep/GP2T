@@ -210,8 +210,38 @@ redeploy (o app também sempre oferece a opção "Outros" com texto livre).
 
 ## Estrutura da planilha
 
-O app **nunca apaga nem reorganiza** o que já existia. Ele só acrescenta
-colunas técnicas ao final das abas (`ID`, `CriadoEm`, `CriadoPor`,
-`AtualizadoEm`, `AtualizadoPor`, e nos lançamentos também `EquipamentoId`/
-`OperadorId`) e cria as 3 abas novas descritas acima. As colunas visíveis que
-você já usava continuam exatamente onde estavam.
+A planilha tem **10 abas visíveis** (layout "profissional", com faixa de
+título) mais 3 abas internas do app (sem faixa de título, propositalmente
+simples):
+
+1. **Equipamentos**, **Operadores**, **Lançamento Diário** — as 3 abas que o
+   app lê e escreve. Faixa de título na linha 1, subtítulo na linha 2,
+   **cabeçalho de colunas na linha 3** (fundo azul), **dados a partir da
+   linha 4**. As colunas originais continuam exatamente com os mesmos nomes;
+   o app só acrescenta colunas técnicas ao final da linha 3 (`ID`,
+   `CriadoEm`, `CriadoPor`, `AtualizadoEm`, `AtualizadoPor`, e em Lançamento
+   Diário também `EquipamentoId`/`OperadorId`).
+2. **Resumo Diário**, **Resumo Mensal**, **Resumo Semanal**, **Hist.
+   Operadores**, **Hist. Equipamentos**, **Hist. Lançamentos** — painéis
+   **100% calculados por fórmula nativa do Sheets** (não são tocados pelo
+   app, nem leem nem escrevem nada por API). Atualizam sozinhos conforme
+   novos lançamentos entram pelo app. **Não edite fórmulas nessas abas** —
+   um erro de fórmula quebra o painel inteiro.
+3. **Manutenções** — só cabeçalho, preenchimento **manual direto na
+   planilha** (o app não tem tela para isso, por desenho: é a aba de
+   Históricos dela mesma que consome esses dados).
+4. **Usuários**, **Auditoria**, **Config** — abas internas do app (login,
+   log de ações, listas de Função/Tipo de Equipamento). Ficam com cabeçalho
+   simples na linha 1, sem faixa de título — não fazem parte do layout
+   visual "profissional" de propósito, o usuário raramente as abre.
+
+> **Nota técnica:** em `Lançamento Diário`, as colunas `Horas`, `L/h` e
+> `L/Ton` são **valores calculados e gravados pelo backend** a cada
+> lançamento (não fórmulas de planilha) — o servidor sempre recalcula tudo
+> antes de gravar, então uma fórmula ali seria sobrescrita na primeira
+> escrita do app. Já os painéis de Resumo/Histórico continuam sendo fórmula
+> de verdade, porque o app nunca escreve neles.
+
+O app **nunca apaga nem reorganiza** o que já existia nas 3 abas de negócio —
+só acrescenta colunas técnicas ao final. As colunas visíveis que você já
+usava continuam com os mesmos nomes.

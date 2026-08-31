@@ -1,11 +1,11 @@
 // ============================================================================
 // sheets.js — Wrapper central de acesso à Planilha Google.
 //
-// Regra de ouro: nunca assumir posição fixa de coluna (lê sempre a linha 1 de
-// cabeçalhos e resolve nome->índice), e nunca reaproveitar um número de linha
-// "antigo" para escrever — toda escrita (update/delete) faz uma leitura FRESCA
-// da coluna de ID imediatamente antes, para não corromper dados se alguém
-// editou a planilha manualmente entre a leitura e a escrita.
+// Regra de ouro: nunca assumir posição fixa de coluna (lê sempre a linha de
+// cabeçalho — ver headerRowOf() — e resolve nome->índice), e nunca reaproveitar
+// um número de linha "antigo" para escrever — toda escrita (update/delete) faz
+// uma leitura FRESCA da coluna de ID imediatamente antes, para não corromper
+// dados se alguém editou a planilha manualmente entre a leitura e a escrita.
 // ============================================================================
 import { google } from 'googleapis';
 import { getAuthClient } from '../config/googleAuth.js';
@@ -17,6 +17,16 @@ async function getClient() {
   const auth = await getAuthClient();
   sheetsClient = google.sheets({ version: 'v4', auth });
   return sheetsClient;
+}
+
+// Linha do cabeçalho por aba. Equipamentos/Operadores/Lançamento Diário usam
+// o layout "profissional" (faixa de título na linha 1, subtítulo na linha 2,
+// cabeçalho de colunas na linha 3, dados a partir da linha 4). As abas
+// internas do app (Usuários/Auditoria/Config) continuam simples, cabeçalho
+// na linha 1 — nunca foram tocadas pela migração de layout.
+const HEADER_ROW = { Equipamentos: 3, Operadores: 3, 'Lançamento Diário': 3 };
+function headerRowOf(tab) {
+  return HEADER_ROW[tab] || 1;
 }
 
 // Índice 0-based -> letra de coluna do Sheets (0 -> A, 25 -> Z, 26 -> AA...).
@@ -33,9 +43,10 @@ function colLetter(idx) {
 
 async function getHeaderMap(tab) {
   const sheets = await getClient();
+  const headerRow = headerRowOf(tab);
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${tab}!1:1`,
+    range: `${tab}!${headerRow}:${headerRow}`,
   });
   const row = (res.data.values && res.data.values[0]) || [];
   const map = {};
@@ -50,14 +61,15 @@ async function getHeaderMap(tab) {
 export async function getAllRows(tab) {
   const sheets = await getClient();
   const { map } = await getHeaderMap(tab);
+  const dataStart = headerRowOf(tab) + 1;
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${tab}!A2:ZZ`,
+    range: `${tab}!A${dataStart}:ZZ`,
   });
   const rows = res.data.values || [];
   return rows
     .map((r, i) => {
-      const obj = { _rowNumber: i + 2 };
+      const obj = { _rowNumber: i + dataStart };
       for (const [name, idx] of Object.entries(map)) obj[name] = r[idx] ?? '';
       return obj;
     })
@@ -72,9 +84,13 @@ export async function appendRow(tab, rowObject) {
   for (const [name, idx] of Object.entries(map)) {
     if (name in rowObject) arr[idx] = rowObject[name] ?? '';
   }
+  const dataStart = headerRowOf(tab) + 1;
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${tab}!A1`,
+    // Âncora no início da área de dados (não em A1): nas abas com faixa de
+    // título/subtítulo (linhas 1-2, não vazias), ancorar em A1 confundiria o
+    // Sheets sobre onde a "tabela" realmente começa.
+    range: `${tab}!A${dataStart}`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [arr] },
@@ -91,13 +107,14 @@ export async function findRowNumberById(tab, idColumnName, idValue) {
     throw new Error(`Coluna "${idColumnName}" não encontrada na aba "${tab}". Rode o setup da planilha (npm run setup:sheet).`);
   }
   const letter = colLetter(map[idColumnName]);
+  const dataStart = headerRowOf(tab) + 1;
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${tab}!${letter}2:${letter}`,
+    range: `${tab}!${letter}${dataStart}:${letter}`,
   });
   const col = res.data.values || [];
   for (let i = 0; i < col.length; i++) {
-    if (col[i][0] === idValue) return i + 2;
+    if (col[i][0] === idValue) return i + dataStart;
   }
   return null;
 }
@@ -157,4 +174,4 @@ export async function deleteRow(tab, rowNumber) {
   });
 }
 
-export { colLetter };
+export { colLetter, headerRowOf };
